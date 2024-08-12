@@ -8,7 +8,7 @@ terraform {
 }
 
 provider "aws" {
-  region = "ap-south-1"
+  region = "ap-southeast-1"
 }
 
 module "vpc" {
@@ -17,7 +17,7 @@ module "vpc" {
   name = "my-vpc"
   cidr = "10.0.0.0/16"
 
-  azs = ["ap-south-1a"]
+  azs = ["ap-southeast-1"]
   #private_subnets = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
   public_subnets = ["10.0.101.0/24"]
 
@@ -30,7 +30,7 @@ module "vpc" {
   }
 }
 resource "aws_instance" "EC2-1" {
-  ami                    = "ami-0ad21ae1d0696ad58"
+  ami                    = "ami-060e277c0d4cce553"
   instance_type          = "t2.micro"
   subnet_id              = module.vpc.public_subnets[0]
   vpc_security_group_ids = [aws_security_group.Security-group.id]
