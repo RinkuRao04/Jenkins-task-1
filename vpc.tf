@@ -11,28 +11,56 @@ provider "aws" {
   region = "ap-southeast-1"
 }
 
-module "vpc" {
-  source = "terraform-aws-modules/vpc/aws"
-
-  name = "my-vpc"
-  cidr = "10.0.0.0/16"
-
-  azs = ["ap-southeast-1"]
-  #private_subnets = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
-  public_subnets = ["10.0.101.0/24"]
-
-  enable_nat_gateway = false
-  enable_vpn_gateway = false
-
+resource "aws_vpc" "vpc1" {
+  cidr_block       = "10.0.0.0/24
+  instance_tenancy = "default"
   tags = {
-    Terraform   = "true"
-    Environment = "dev"
+      Name = "VPC-For-Web-Hosting"
+  }
+
+}
+
+resource "aws_subnet" "subnet1a" {
+  vpc_id                  = aws_vpc.vpc1.id
+  cidr_block              = "10.0.1.0/24"
+  availability_zone       = "ap-southeast-1a"
+  map_public_ip_on_launch = "true"
+  tags = {
+      Name = "subnet-For-Web-Hosting"
   }
 }
+
+resource "aws_internet_gateway" "vpc1_igw" {
+  vpc_id = aws_vpc.vpc1.id
+
+  tags = {
+    Name = "igw-For-Web-Hosting"
+  }
+}
+
+resource "aws_route_table" "Public_RT" {
+  vpc_id = aws_vpc.vpc1.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.vpc1_igw.id
+  }
+
+  tags = {
+    Name = "default_route_table_association"
+  }
+}
+
+resource "aws_route_table_association" "subnet1a_rt" {
+  subnet_id      = aws_subnet.subnet1a.id
+  route_table_id = aws_route_table.Public_RT.id
+}
+
+
 resource "aws_instance" "EC2-1" {
-  ami                    = "ami-060e277c0d4cce553"
+  ami                    = "ami-01811d4912b4ccb26"
   instance_type          = "t2.micro"
-  subnet_id              = module.vpc.public_subnets[0]
+  subnet_id              = aws_subnet.subnet1a
   vpc_security_group_ids = [aws_security_group.Security-group.id]
   tags = {
     Name = "jenkins-1-ec2"
@@ -41,8 +69,8 @@ resource "aws_instance" "EC2-1" {
 }
 
 resource "aws_security_group" "Security-group" {
-  name   = "sg"
-  vpc_id = module.vpc.vpc_id
+  name   = "SG-For-Web-Hosting"
+  vpc_id = aws_vpc.vpc1.vpc_id
 
   ingress {
     from_port = 0
