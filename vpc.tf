@@ -1,89 +1,53 @@
-terraform {
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "5.60.0"
-    }
-  }
-}
-
-provider "aws" {
-  region = "ap-southeast-1"
-}
-
-resource "aws_vpc" "vpc1" {
-  cidr_block       = "10.0.0.0/24
+resource "aws_vpc" "vpc_tf" {
+  cidr_block       = "10.1.0.0/24"
   instance_tenancy = "default"
-  tags = {
-      Name = "VPC-For-Web-Hosting"
-  }
 
-}
-
-resource "aws_subnet" "subnet1a" {
-  vpc_id                  = aws_vpc.vpc1.id
-  cidr_block              = "10.0.1.0/24"
-  availability_zone       = "ap-southeast-1a"
-  map_public_ip_on_launch = "true"
   tags = {
-      Name = "subnet-For-Web-Hosting"
+    Name = "VPC-for-hosting"
   }
 }
 
-resource "aws_internet_gateway" "vpc1_igw" {
-  vpc_id = aws_vpc.vpc1.id
-
+resource "aws_subnet" "public-subnet_tf" {
+  vpc_id     = aws_vpc.vpc_tf.id
+  cidr_block = "10.1.0.0/26"
+  availability_zone = "ap-southeast-1a"
   tags = {
-    Name = "igw-For-Web-Hosting"
+    Name = "PUBLIC-SUBNET-for-hosting"
   }
+  depends_on = [aws_vpc.vpc_tf]
 }
 
-resource "aws_route_table" "Public_RT" {
-  vpc_id = aws_vpc.vpc1.id
+
+resource "aws_internet_gateway" "igw_tf" {
+  vpc_id = aws_vpc.vpc_tf.id
+  tags = {
+    Name = "IGW-for-hosting"
+  }
+  depends_on = [aws_vpc.vpc_tf]
+}
+
+resource "aws_eip" "eip_tf" {}
+
+
+resource "aws_route_table" "public-rt_tf" {
+  vpc_id = aws_vpc.vpc_tf.id
 
   route {
     cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.vpc1_igw.id
+    gateway_id = aws_internet_gateway.igw_tf.id
   }
 
   tags = {
-    Name = "default_route_table_association"
+    Name = "PUBLIC_RT-for-hosting"
   }
-}
-
-resource "aws_route_table_association" "subnet1a_rt" {
-  subnet_id      = aws_subnet.subnet1a.id
-  route_table_id = aws_route_table.Public_RT.id
+  depends_on = [aws_vpc.vpc_tf, aws_internet_gateway.igw_tf]
 }
 
 
-resource "aws_instance" "EC2-1" {
-  ami                    = "ami-01811d4912b4ccb26"
-  instance_type          = "t2.micro"
-  subnet_id              = aws_subnet.subnet1a
-  vpc_security_group_ids = [aws_security_group.Security-group.id]
-  tags = {
-    Name = "jenkins-1-ec2"
-  }
-  associate_public_ip_address = true
+
+resource "aws_route_table_association" "public-subnet-rt-association_tf" {
+  subnet_id      = aws_subnet.public-subnet_tf.id
+  route_table_id = aws_route_table.public-rt_tf.id
+  depends_on     = [aws_subnet.public-subnet_tf, aws_route_table.public-rt_tf]
 }
-
-resource "aws_security_group" "Security-group" {
-  name   = "SG-For-Web-Hosting"
-  vpc_id = aws_vpc.vpc1.vpc_id
-
-  ingress {
-    from_port = 0
-    to_port   = 0
-    protocol  = "-1"
-    cidr_blocks = [ "0.0.0.0/0" ]
-  }
-  egress {
-    from_port = 0
-    to_port   = 0
-    protocol  = "-1"
-    cidr_blocks = [ "0.0.0.0/0" ]
-  }
-}
-
 
